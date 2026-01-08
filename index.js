@@ -2,9 +2,9 @@ export default {
   async fetch(req, env) {
 
     /* ============ CONFIG ============ */
-    const SECRET = 'CHANGE_THIS_SECRET';  // SAME AS index.html
-    const TARGET_HTML = 'https://yourdomain.com/n1.html'; // <-- CHANGE
-    const ALLOWED_ORIGIN = 'https://yourdomain.com';
+    const SECRET = '1234567890';  // SAME AS index.html
+    const TARGET_HTML = 'https://original-action-744073.framer.app/'; // <-- CHANGE
+    const ALLOWED_ORIGIN = 'https://original-action-744073.framer.app/';
     /* ================================= */
 
     const url = new URL(req.url);
@@ -66,3 +66,4 @@ async function sha256(input) {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
